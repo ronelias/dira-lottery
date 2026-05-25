@@ -106,34 +106,6 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
-    st.subheader("Scoring Weight")
-    alpha = st.slider(
-        "How much does **probability** matter vs. **preference**?",
-        min_value=0.0, max_value=1.0, value=0.5, step=0.05,
-        key="alpha",
-    )
-    # Dynamic label
-    if alpha >= 0.95:
-        alpha_label = "Probability only — ignore preferences"
-    elif alpha >= 0.70:
-        alpha_label = f"Probability-leaning — {alpha:.0%} chance, {1-alpha:.0%} preference"
-    elif alpha >= 0.55:
-        alpha_label = f"Slight probability lean — {alpha:.0%} / {1-alpha:.0%}"
-    elif alpha >= 0.45:
-        alpha_label = f"Balanced — {alpha:.0%} probability, {1-alpha:.0%} preference"
-    elif alpha >= 0.30:
-        alpha_label = f"Preference-leaning — {alpha:.0%} chance, {1-alpha:.0%} preference"
-    elif alpha > 0.05:
-        alpha_label = f"Preference-leaning — {alpha:.0%} chance, {1-alpha:.0%} preference"
-    else:
-        alpha_label = "Preference only — ignore probability"
-    st.caption(f"📐 {alpha_label}")
-    st.caption(
-        "Formula: `score = α × P(win) + (1-α) × (pref/10)`  \n"
-        "Both components are on a 0–1 scale. α = probability weight."
-    )
-
-    st.divider()
     st.subheader("Your City Preferences")
     st.caption("Rate each city 0–10. Higher = more preferred.")
 
@@ -243,6 +215,59 @@ with st.sidebar:
         )
     else:
         st.caption("📊 Usage stats unavailable")
+
+    st.divider()
+
+    # ── Advanced settings ──
+    with st.expander("⚙️ Advanced Settings"):
+        alpha = st.slider(  # noqa: F841  (value also stored in session_state["alpha"])
+            "Probability weight (α)",
+            min_value=0.0, max_value=1.0, value=0.5, step=0.05,
+            key="alpha",
+        )
+        if alpha >= 0.95:
+            alpha_label = "Probability only — ignoring preferences"
+        elif alpha >= 0.55:
+            alpha_label = f"Probability-leaning — {alpha:.0%} / {1-alpha:.0%}"
+        elif alpha >= 0.45:
+            alpha_label = f"Balanced — {alpha:.0%} probability, {1-alpha:.0%} preference"
+        elif alpha > 0.05:
+            alpha_label = f"Preference-leaning — {alpha:.0%} / {1-alpha:.0%}"
+        else:
+            alpha_label = "Preference only — ignoring probability"
+        st.caption(f"📐 {alpha_label}")
+        st.markdown(
+            """
+**How the score is calculated (MAUT additive model):**
+
+> `score = α × P(win) + (1-α) × (pref / 10)`
+
+Both components are normalized to **[0, 1]**, so neither can unfairly dominate the other.
+
+- **α = 1.0** → Only probability matters — choose the cities with the best odds regardless of where you'd like to live
+- **α = 0.5** → Equal weight — a city you love (pref 10) at 30% win rate scores the same as a city you're neutral on (pref 5) at 55% win rate
+- **α = 0.0** → Only preference matters — choose your favourite cities regardless of odds
+
+This is the standard [Multi-Attribute Utility Theory (MAUT)](https://en.wikipedia.org/wiki/Multi-attribute_utility) additive formulation under preferential independence (Keeney & Raiffa, 1976).
+            """
+        )
+
+    # ── LinkedIn ──
+    st.markdown(
+        """
+        <div style="text-align:center; padding: 12px 0 4px 0;">
+            <a href="https://www.linkedin.com/in/ronelias7/" target="_blank"
+               style="text-decoration:none; color:#0077B5; font-size:0.82rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                     fill="#0077B5" viewBox="0 0 16 16" style="vertical-align:-2px; margin-right:4px;">
+                  <path d="M0 1.146C0 .513.526 0 1.175 0h13.65C15.474 0 16 .513 16 1.146v13.708c0 .633-.526 1.146-1.175 1.146H1.175C.526 16 0 15.487 0 14.854zm4.943 12.248V6.169H2.542v7.225zm-1.2-8.212c.837 0 1.358-.554 1.358-1.248-.015-.709-.52-1.248-1.342-1.248S2.4 3.226 2.4 3.934c0 .694.521 1.248 1.327 1.248zm4.908 8.212V9.359c0-.216.016-.432.08-.586.173-.431.568-.878 1.232-.878.869 0 1.216.662 1.216 1.634v3.865h2.401V9.25c0-2.22-1.184-3.252-2.764-3.252-1.274 0-1.845.7-2.165 1.193v.025h-.016l.016-.025V6.169h-2.4c.03.678 0 7.225 0 7.225z"/>
+                </svg>
+                Built by Ron Elias
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ── Main content ──────────────────────────────────────────────────────────────
 st.title("🔑 Dira Edge — Find Your Winning Cities")
