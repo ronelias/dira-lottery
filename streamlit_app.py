@@ -224,30 +224,17 @@ with st.sidebar:
     with st.expander("⚙️ Advanced Settings"):
         st.caption("What matters more to you — best odds or best location?")
 
-        # Anchor labels flanking the slider
-        c_left, c_mid, c_right = st.columns([1, 5, 1])
-        with c_left:
-            st.markdown(
-                "<div style='text-align:center;line-height:1.3;padding-top:4px'>"
-                "<div style='font-size:1.3rem'>🏙️</div>"
-                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>City</div>"
-                "</div>",
-                unsafe_allow_html=True,
-            )
-        with c_mid:
-            alpha = st.slider(
-                "odds_vs_location",
-                min_value=0.0, max_value=1.0, value=0.5, step=0.05,
-                key="alpha", label_visibility="collapsed",
-            )
-        with c_right:
-            st.markdown(
-                "<div style='text-align:center;line-height:1.3;padding-top:4px'>"
-                "<div style='font-size:1.3rem'>📊</div>"
-                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>Odds</div>"
-                "</div>",
-                unsafe_allow_html=True,
-            )
+        alpha = st.slider(
+            "odds_vs_location",
+            min_value=0.0, max_value=1.0, value=0.5, step=0.05,
+            key="alpha", label_visibility="collapsed",
+        )
+        st.markdown(
+            "<div style='display:flex;justify-content:space-between;"
+            "font-size:0.75rem;color:#888;margin-top:-10px;padding:0 2px'>"
+            "<span>🏙️ City first</span><span>Best odds 📊</span></div>",
+            unsafe_allow_html=True,
+        )
 
         # Persona card based on alpha
         if alpha >= 0.85:
