@@ -1,5 +1,7 @@
-# Scraped data (large, ephemeral — fetched live by Streamlit Cloud)
-data/
+# Raw timestamped scrapes (local only, can be large)
+data/scraped_*.csv
+data/latest.csv
+# history.csv IS tracked — Streamlit Cloud uses it for the time series chart
 
 # Generated notebook output images
 *.png

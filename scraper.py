@@ -481,11 +481,81 @@ def load_all_historical(data_dir: str = DATA_DIR) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
+HISTORY_CSV = os.path.join(DATA_DIR, "history.csv")
+
+
+def append_history(df: pd.DataFrame) -> str:
+    """
+    Append today's city-level probabilities to data/history.csv.
+    One row per city per day — used by Streamlit Cloud for the time series chart.
+    Returns the path to history.csv.
+    """
+    os.makedirs(DATA_DIR, exist_ok=True)
+    city_probs = compute_city_probabilities(df)
+    city_probs["snapshot_time"] = datetime.now().strftime("%Y-%m-%d")
+
+    if os.path.exists(HISTORY_CSV):
+        existing = pd.read_csv(HISTORY_CSV, encoding="utf-8-sig")
+        # Replace today's entries if already present (idempotent re-runs)
+        today = city_probs["snapshot_time"].iloc[0]
+        existing = existing[existing["snapshot_time"] != today]
+        combined = pd.concat([existing, city_probs], ignore_index=True)
+    else:
+        combined = city_probs
+
+    combined.to_csv(HISTORY_CSV, index=False, encoding="utf-8-sig")
+    return HISTORY_CSV
+
+
+def git_push_history() -> bool:
+    """
+    Commit and push data/history.csv to GitHub so Streamlit Cloud can read it.
+    Returns True on success.
+    """
+    import subprocess
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    def run(cmd):
+        result = subprocess.run(cmd, cwd=repo_root, capture_output=True, text=True)
+        return result.returncode == 0, result.stdout + result.stderr
+
+    ok, out = run(["git", "add", "data/history.csv"])
+    if not ok:
+        print(f"  [git] add failed: {out.strip()}")
+        return False
+
+    ok, out = run(["git", "diff", "--cached", "--quiet"])
+    if ok:
+        print("  [git] No changes to push (history.csv unchanged).")
+        return True  # nothing to commit, that's fine
+
+    ok, out = run(["git", "commit", "-m", f"chore: daily lottery history update {today}"])
+    if not ok:
+        print(f"  [git] commit failed: {out.strip()}")
+        return False
+
+    ok, out = run(["git", "push"])
+    if not ok:
+        print(f"  [git] push failed: {out.strip()}")
+        return False
+
+    print(f"  [git] history.csv pushed to GitHub ({today})")
+    return True
+
+
 def compute_city_probabilities_over_time(data_dir: str = DATA_DIR) -> pd.DataFrame:
     """
-    Load all historical snapshots and compute P(win) per city per snapshot.
-    Returns a DataFrame with columns: snapshot_time, city_english, city_hebrew, p_win.
+    Load historical city probabilities for the time series chart.
+    Prefers data/history.csv (works on Streamlit Cloud) over raw snapshots.
     """
+    history_path = os.path.join(data_dir, "history.csv")
+    if os.path.exists(history_path):
+        df = pd.read_csv(history_path, encoding="utf-8-sig")
+        df["snapshot_time"] = pd.to_datetime(df["snapshot_time"])
+        return df
+
+    # Fallback: compute from raw timestamped CSVs (local only)
     hist = load_all_historical(data_dir)
     if hist.empty:
         return pd.DataFrame()
@@ -503,6 +573,8 @@ def compute_city_probabilities_over_time(data_dir: str = DATA_DIR) -> pd.DataFra
 
 if __name__ == "__main__":
     debug = "--debug" in sys.argv
+    push  = "--push"  in sys.argv   # commit & push history.csv to GitHub
+
     print("Fetching lottery projects from dira.moch.gov.il ...")
     df = fetch_projects(debug=debug)
 
@@ -514,5 +586,13 @@ if __name__ == "__main__":
     ts_path, latest_path = save_data(df)
     print(f"Saved: {ts_path}")
     print(f"       {latest_path}")
+
+    history_path = append_history(df)
+    print(f"  History: {history_path}")
+
     generate_cities_csv(df)
     print_summary(df)
+
+    if push:
+        print("\nPushing history.csv to GitHub ...")
+        git_push_history()
