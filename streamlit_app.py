@@ -74,6 +74,21 @@ def n_snapshots() -> int:
     return len(glob.glob(os.path.join(DATA_DIR, "scraped_*.csv")))
 
 
+COUNTER_URL = "https://api.counterapi.dev/v1/dira-lottery/visits"
+
+
+def get_visit_count(increment: bool = False) -> int | None:
+    """Read (and optionally increment) the visitor counter. Returns None on failure."""
+    try:
+        url = COUNTER_URL + ("/up" if increment else "")
+        r = requests.get(url, timeout=4)
+        if r.status_code == 200:
+            return r.json().get("count")
+    except Exception:
+        pass
+    return None
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("🔑 Dira Edge")
@@ -171,6 +186,35 @@ with st.sidebar:
         mime="application/json",
         width="stretch",
     )
+
+# ── Count this visit (once per session) ──────────────────────────────────────
+if "visit_counted" not in st.session_state:
+    visit_count = get_visit_count(increment=True)
+    st.session_state["visit_counted"] = True
+    st.session_state["visit_count"] = visit_count
+else:
+    visit_count = st.session_state.get("visit_count")
+
+# ── Visitor counter in sidebar ───────────────────────────────────────────────
+with st.sidebar:
+    st.divider()
+    if visit_count is not None:
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding: 8px 0 4px 0;">
+                <div style="font-size:2rem; line-height:1.1;">👥</div>
+                <div style="font-size:1.6rem; font-weight:700; letter-spacing:-1px;">
+                    {visit_count:,}
+                </div>
+                <div style="font-size:0.75rem; color:#888; margin-top:2px;">
+                    people have used this tool
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.caption("📊 Usage stats unavailable")
 
 # ── Main content ──────────────────────────────────────────────────────────────
 st.title("🔑 Dira Edge — Find Your Winning Cities")
