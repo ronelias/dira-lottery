@@ -106,8 +106,36 @@ with st.sidebar:
         st.rerun()
 
     st.divider()
+    st.subheader("Scoring Weight")
+    alpha = st.slider(
+        "How much does **probability** matter vs. **preference**?",
+        min_value=0.0, max_value=1.0, value=0.5, step=0.05,
+        key="alpha",
+    )
+    # Dynamic label
+    if alpha >= 0.95:
+        alpha_label = "Probability only — ignore preferences"
+    elif alpha >= 0.70:
+        alpha_label = f"Probability-leaning — {alpha:.0%} chance, {1-alpha:.0%} preference"
+    elif alpha >= 0.55:
+        alpha_label = f"Slight probability lean — {alpha:.0%} / {1-alpha:.0%}"
+    elif alpha >= 0.45:
+        alpha_label = f"Balanced — {alpha:.0%} probability, {1-alpha:.0%} preference"
+    elif alpha >= 0.30:
+        alpha_label = f"Preference-leaning — {alpha:.0%} chance, {1-alpha:.0%} preference"
+    elif alpha > 0.05:
+        alpha_label = f"Preference-leaning — {alpha:.0%} chance, {1-alpha:.0%} preference"
+    else:
+        alpha_label = "Preference only — ignore probability"
+    st.caption(f"📐 {alpha_label}")
+    st.caption(
+        "Formula: `score = α × P(win) + (1-α) × (pref/10)`  \n"
+        "Both components are on a 0–1 scale. α = probability weight."
+    )
+
+    st.divider()
     st.subheader("Your City Preferences")
-    st.caption("Rate each city 0–10. Higher = more preferred. 5 = neutral.")
+    st.caption("Rate each city 0–10. Higher = more preferred.")
 
     # ── Save / Load preferences ──
     profile_name = st.text_input("Profile name (optional)", placeholder="e.g. Ron & Marine")
@@ -234,20 +262,23 @@ tabs = st.tabs(["📊 Recommendations", "📈 Time Series", "📋 Raw Data"])
 # Tab 1: Recommendations
 # ─────────────────────────────────────────────────────────────────────────────
 with tabs[0]:
-    # Merge preferences
+    # Merge preferences and compute MAUT additive score
+    # score = α × P(win) + (1-α) × (pref / 10)
+    # Both components normalized to [0,1]. α comes from the sidebar slider.
     prefs_df = pd.DataFrame(
         [{"city_english": c, "preference": v} for c, v in preferences.items()]
     )
     merged = city_probs.merge(prefs_df, on="city_english", how="left")
     merged["preference"] = merged["preference"].fillna(5)
-    merged["weighted_score"] = merged["p_win"] * merged["preference"]
+    merged["pref_norm"] = merged["preference"] / 10.0
+    merged["maut_score"] = alpha * merged["p_win"] + (1 - alpha) * merged["pref_norm"]
 
     # ── Top 3 columns ──
     col_a, col_b = st.columns(2)
 
     with col_a:
         st.subheader("Option A — Best Probability")
-        st.caption("Top 3 cities by raw P(win) — maximizes joint win chance")
+        st.caption("Top 3 by P(win) only — maximizes your joint win chance")
         top3_prob = merged.nlargest(3, "p_win")
         jp_prob = compute_joint_p(top3_prob["p_win"].tolist())
 
@@ -257,14 +288,17 @@ with tabs[0]:
                 c1, c2, c3 = st.columns(3)
                 c1.metric("P(win)", f"{row['p_win']:.1%}")
                 c2.metric("Raffles", int(row["raffles"]))
-                c3.metric("Apts", int(row["total_apartments"]))
+                c3.metric("Apts", int(row["general_apartments"] if "general_apartments" in row else row["total_apartments"]))
 
         st.success(f"**Joint P(winning at least one city): {jp_prob:.1%}**")
 
     with col_b:
-        st.subheader("Option B — Best Weighted Score")
-        st.caption("Top 3 by P(win) × your preference (adjust sliders in sidebar)")
-        top3_weighted = merged.nlargest(3, "weighted_score")
+        st.subheader("Option B — Your Balanced Score")
+        st.caption(
+            f"Top 3 by MAUT score = **{alpha:.0%}** × P(win) + **{1-alpha:.0%}** × preference  "
+            f"*(α = {alpha:.2f})*"
+        )
+        top3_weighted = merged.nlargest(3, "maut_score")
         jp_weighted = compute_joint_p(top3_weighted["p_win"].tolist())
 
         for rank, (_, row) in enumerate(top3_weighted.iterrows(), 1):
@@ -272,8 +306,8 @@ with tabs[0]:
                 st.markdown(f"**{rank}. {row['city_english']}** &nbsp; {row['city_hebrew']}")
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("P(win)", f"{row['p_win']:.1%}")
-                c2.metric("Pref", int(row["preference"]))
-                c3.metric("Score", f"{row['weighted_score']:.2f}")
+                c2.metric("Pref", f"{int(row['preference'])}/10")
+                c3.metric("Score", f"{row['maut_score']:.3f}")
                 c4.metric("Raffles", int(row["raffles"]))
 
         st.success(f"**Joint P(winning at least one city): {jp_weighted:.1%}**")
@@ -282,10 +316,13 @@ with tabs[0]:
 
     # ── Full rankings table ──
     st.subheader("All Cities — Full Rankings Table")
-    st.caption("P(win) is calculated on the **general pool only** (total minus handicapped/reservist reserved units)")
+    st.caption(
+        "P(win) = general pool only (excludes handicapped/reservist/local reserved units).  "
+        f"MAUT Score = {alpha:.0%} × P(win) + {1-alpha:.0%} × (pref/10)"
+    )
     table = merged.copy()
     table["rank_prob"] = table["p_win"].rank(ascending=False, method="min").astype(int)
-    table["rank_weighted"] = table["weighted_score"].rank(ascending=False, method="min").astype(int)
+    table["rank_maut"] = table["maut_score"].rank(ascending=False, method="min").astype(int)
 
     gen_apts_col = "general_apartments" if "general_apartments" in table.columns else "total_apartments"
     gen_reg_col  = "general_registered"  if "general_registered"  in table.columns else "total_registered"
@@ -293,15 +330,15 @@ with tabs[0]:
     display_table = table[[
         "rank_prob", "city_english", "city_hebrew",
         "raffles", gen_apts_col, gen_reg_col,
-        "p_win", "preference", "weighted_score", "rank_weighted"
+        "p_win", "preference", "maut_score", "rank_maut"
     ]].sort_values("rank_prob").reset_index(drop=True)
     display_table.columns = [
         "#", "City (EN)", "City (HE)",
         "Raffles", "Gen. Apts", "Gen. Registered",
-        "P(win)", "Pref", "Weighted Score", "Weighted #"
+        "P(win)", "Pref (0-10)", "MAUT Score", "MAUT #"
     ]
     display_table["P(win)"] = display_table["P(win)"].map("{:.2%}".format)
-    display_table["Weighted Score"] = display_table["Weighted Score"].round(3)
+    display_table["MAUT Score"] = display_table["MAUT Score"].round(3)
 
     st.dataframe(display_table, width="stretch", hide_index=True)
 
@@ -336,24 +373,26 @@ with tabs[0]:
     )
     st.plotly_chart(fig_bar)
 
-    # ── Bar chart: weighted score ──
-    st.subheader("Weighted Score per City (P × Your Preference)")
+    # ── Bar chart: MAUT score ──
+    st.subheader(f"MAUT Score per City  (α={alpha:.2f} · {alpha:.0%} probability + {1-alpha:.0%} preference)")
     top3w_names = set(top3_weighted["city_english"].values)
     bar_df["color_w"] = bar_df["city_english"].apply(
-        lambda c: "Top 3 (weighted)" if c in top3w_names else "Other"
+        lambda c: "Top 3 (balanced)" if c in top3w_names else "Other"
     )
+    bar_df_sorted = bar_df.sort_values("maut_score", ascending=False)
     fig_weighted = px.bar(
-        bar_df.sort_values("weighted_score", ascending=False),
+        bar_df_sorted,
         x="city_english",
-        y="weighted_score",
+        y="maut_score",
         color="color_w",
-        color_discrete_map={"Top 3 (weighted)": "#e74c3c", "Other": "#e67e22"},
-        labels={"weighted_score": "Weighted Score", "city_english": "City", "color_w": ""},
-        text=bar_df.sort_values("weighted_score", ascending=False)["weighted_score"].round(2),
+        color_discrete_map={"Top 3 (balanced)": "#e74c3c", "Other": "#e67e22"},
+        labels={"maut_score": "MAUT Score (0–1)", "city_english": "City", "color_w": ""},
+        text=bar_df_sorted["maut_score"].round(3),
     )
     fig_weighted.update_traces(textposition="outside")
     fig_weighted.update_layout(
         xaxis_tickangle=-35,
+        yaxis_range=[0, 1.05],
         height=480,
         margin=dict(t=20, b=10),
     )
