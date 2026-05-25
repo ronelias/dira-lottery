@@ -77,7 +77,7 @@ def n_snapshots() -> int:
 COUNTER_URL = "https://api.counterapi.dev/v1/dira-lottery/visits"
 
 
-def get_visit_count(increment: bool = False) -> int | None:
+def get_visit_count(increment: bool = False):
     """Read (and optionally increment) the visitor counter. Returns None on failure."""
     try:
         url = COUNTER_URL + ("/up" if increment else "")
