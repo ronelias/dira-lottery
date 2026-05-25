@@ -222,36 +222,66 @@ with st.sidebar:
     st.divider()
 
     with st.expander("⚙️ Advanced Settings"):
-        alpha = st.slider(
-            "Probability weight (α)",
-            min_value=0.0, max_value=1.0, value=0.5, step=0.05,
-            key="alpha",
-        )
-        if alpha >= 0.95:
-            alpha_label = "Probability only — ignoring preferences"
-        elif alpha >= 0.55:
-            alpha_label = f"Probability-leaning — {alpha:.0%} / {1-alpha:.0%}"
-        elif alpha >= 0.45:
-            alpha_label = f"Balanced — {alpha:.0%} probability, {1-alpha:.0%} preference"
-        elif alpha > 0.05:
-            alpha_label = f"Preference-leaning — {alpha:.0%} / {1-alpha:.0%}"
+        st.caption("What matters more to you — best odds or best location?")
+
+        # Visual emoji anchors flanking the slider
+        c_left, c_mid, c_right = st.columns([1, 5, 1])
+        with c_left:
+            st.markdown("<div style='text-align:center;font-size:1.4rem;padding-top:8px'>❤️</div>", unsafe_allow_html=True)
+        with c_mid:
+            alpha = st.slider(
+                "odds_vs_location",
+                min_value=0.0, max_value=1.0, value=0.5, step=0.05,
+                key="alpha", label_visibility="collapsed",
+            )
+        with c_right:
+            st.markdown("<div style='text-align:center;font-size:1.4rem;padding-top:8px'>🎯</div>", unsafe_allow_html=True)
+
+        # Persona card based on alpha
+        if alpha >= 0.85:
+            persona, color, desc = (
+                "🎯 Odds Hunter",
+                "#1a6b3c",
+                "You're playing the numbers game — every percent counts. The city is a bonus.",
+            )
+        elif alpha >= 0.65:
+            persona, color, desc = (
+                "📈 Smart Player",
+                "#1a5276",
+                "You lean toward the best odds, but you still care where you land.",
+            )
+        elif alpha >= 0.35:
+            persona, color, desc = (
+                "⚖️ The Balancer",
+                "#6c3483",
+                "You want a real shot at winning AND a city you'll actually love.",
+            )
+        elif alpha >= 0.15:
+            persona, color, desc = (
+                "🏡 Location-First",
+                "#784212",
+                "You know where you want to live — odds are a tiebreaker.",
+            )
         else:
-            alpha_label = "Preference only — ignoring probability"
-        st.caption(f"📐 {alpha_label}")
+            persona, color, desc = (
+                "❤️ Dream Chaser",
+                "#922b21",
+                "Your heart leads. The city has to be right — odds are secondary.",
+            )
+
         st.markdown(
-            """
-**How the score is calculated (MAUT additive model):**
+            f"""<div style="background:{'rgba(26,107,60,0.08)' if color == '#1a6b3c' else 'rgba(100,100,200,0.07)'};
+                border-left:3px solid {color}; border-radius:6px;
+                padding:10px 12px; margin:6px 0 10px 0;">
+                <strong style="color:{color}">{persona}</strong><br>
+                <span style="font-size:0.83rem;color:#555">{desc}</span>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
-> `score = α × P(win) + (1-α) × (pref / 10)`
-
-Both components are normalized to **[0, 1]**, so neither can unfairly dominate the other.
-
-- **α = 1.0** → Only probability matters
-- **α = 0.5** → Equal weight (default)
-- **α = 0.0** → Only preference matters
-
-Standard [Multi-Attribute Utility Theory](https://en.wikipedia.org/wiki/Multi-attribute_utility) additive model (Keeney & Raiffa, 1976).
-            """
+        st.caption(
+            f"❤️ {1-alpha:.0%} location weight · 🎯 {alpha:.0%} probability weight  \n"
+            f"score = {alpha:.2f} × P(win) + {1-alpha:.2f} × (pref / 10)"
         )
 
     st.markdown(
