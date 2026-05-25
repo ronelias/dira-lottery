@@ -224,10 +224,16 @@ with st.sidebar:
     with st.expander("⚙️ Advanced Settings"):
         st.caption("What matters more to you — best odds or best location?")
 
-        # Visual emoji anchors flanking the slider
+        # Anchor labels flanking the slider
         c_left, c_mid, c_right = st.columns([1, 5, 1])
         with c_left:
-            st.markdown("<div style='text-align:center;font-size:1.4rem;padding-top:8px'>❤️</div>", unsafe_allow_html=True)
+            st.markdown(
+                "<div style='text-align:center;line-height:1.3;padding-top:4px'>"
+                "<div style='font-size:1.3rem'>🏙️</div>"
+                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>City<br>matters</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
         with c_mid:
             alpha = st.slider(
                 "odds_vs_location",
@@ -235,7 +241,13 @@ with st.sidebar:
                 key="alpha", label_visibility="collapsed",
             )
         with c_right:
-            st.markdown("<div style='text-align:center;font-size:1.4rem;padding-top:8px'>🎯</div>", unsafe_allow_html=True)
+            st.markdown(
+                "<div style='text-align:center;line-height:1.3;padding-top:4px'>"
+                "<div style='font-size:1.3rem'>📊</div>"
+                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>Best<br>odds</div>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
 
         # Persona card based on alpha
         if alpha >= 0.85:
