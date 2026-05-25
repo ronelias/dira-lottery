@@ -27,8 +27,8 @@ from scraper import (
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Dira B'Hagral — Lottery Optimizer",
-    page_icon="🏠",
+    page_title="Dira Edge — Beat the Lottery",
+    page_icon="🔑",
     layout="wide",
 )
 
@@ -76,7 +76,7 @@ def n_snapshots() -> int:
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.title("🏠 Dira B'Hagral")
+    st.title("🔑 Dira Edge")
     st.caption("דירה בהגרלה — Lottery Optimizer")
     st.divider()
 
@@ -152,7 +152,7 @@ with st.sidebar:
     )
 
 # ── Main content ──────────────────────────────────────────────────────────────
-st.title("Dira B'Hagral — Lottery Probability Optimizer")
+st.title("🔑 Dira Edge — Find Your Winning Cities")
 st.caption(
     f"Data as of {scraped_at} · "
     f"{len(raw_df)} raffles across {len(city_probs)} cities · "
