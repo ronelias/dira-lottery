@@ -14,7 +14,7 @@ The Israeli housing lottery lets young couples apply to **3 cities**, entering a
 
 Open the app, set your city preferences using the sliders, and get your personalized top-3 recommendation.
 
-👉 **[Launch Dira Behagrala](https://ronelias-dira-lottery-streamlit-app-xxxx.streamlit.app)**
+👉 **[Launch Dira Behagrala](https://ronelias-dira-lottery-streamlit-app-bpxpgu.streamlit.app/)**
 
 ### Scoring
 
