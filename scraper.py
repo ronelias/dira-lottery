@@ -492,13 +492,14 @@ def append_history(df: pd.DataFrame) -> str:
     """
     os.makedirs(DATA_DIR, exist_ok=True)
     city_probs = compute_city_probabilities(df)
-    city_probs["snapshot_time"] = datetime.now().strftime("%Y-%m-%d")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    city_probs["snapshot_time"] = now_str
 
     if os.path.exists(HISTORY_CSV):
         existing = pd.read_csv(HISTORY_CSV, encoding="utf-8-sig")
-        # Replace today's entries if already present (idempotent re-runs)
-        today = city_probs["snapshot_time"].iloc[0]
-        existing = existing[existing["snapshot_time"] != today]
+        # Replace entries from the same calendar day if already present (idempotent daily re-runs)
+        today = datetime.now().strftime("%Y-%m-%d")
+        existing = existing[~existing["snapshot_time"].str.startswith(today)]
         combined = pd.concat([existing, city_probs], ignore_index=True)
     else:
         combined = city_probs
