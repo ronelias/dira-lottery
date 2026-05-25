@@ -71,6 +71,14 @@ def compute_joint_p(p_values: list) -> float:
 
 
 def n_snapshots() -> int:
+    """Count unique time snapshots — prefers history.csv (works on Streamlit Cloud)."""
+    history_path = os.path.join(DATA_DIR, "history.csv")
+    if os.path.exists(history_path):
+        try:
+            df = pd.read_csv(history_path, encoding="utf-8-sig", usecols=["snapshot_time"])
+            return df["snapshot_time"].nunique()
+        except Exception:
+            pass
     return len(glob.glob(os.path.join(DATA_DIR, "scraped_*.csv")))
 
 
@@ -79,13 +87,14 @@ COUNTER_URL = "https://api.counterapi.dev/v1/dira-lottery/visits"
 
 def get_visit_count(increment: bool = False):
     """Read (and optionally increment) the visitor counter. Returns None on failure."""
-    try:
-        url = COUNTER_URL + ("/up" if increment else "")
-        r = requests.get(url, timeout=4)
-        if r.status_code == 200:
-            return r.json().get("count")
-    except Exception:
-        pass
+    url = COUNTER_URL + ("/up" if increment else "")
+    for timeout in (5, 10):  # retry once with longer timeout
+        try:
+            r = requests.get(url, timeout=timeout)
+            if r.status_code == 200:
+                return r.json().get("count")
+        except Exception:
+            continue
     return None
 
 
@@ -195,27 +204,6 @@ if "visit_counted" not in st.session_state:
 else:
     visit_count = st.session_state.get("visit_count")
 
-# ── Visitor counter in sidebar ───────────────────────────────────────────────
-with st.sidebar:
-    st.divider()
-    if visit_count is not None:
-        st.markdown(
-            f"""
-            <div style="text-align:center; padding: 8px 0 4px 0;">
-                <div style="font-size:2rem; line-height:1.1;">👥</div>
-                <div style="font-size:1.6rem; font-weight:700; letter-spacing:-1px;">
-                    {visit_count:,}
-                </div>
-                <div style="font-size:0.75rem; color:#888; margin-top:2px;">
-                    people have used this tool
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.caption("📊 Usage stats unavailable")
-
     st.divider()
 
     # ── Advanced settings ──
@@ -270,12 +258,25 @@ This is the standard [Multi-Attribute Utility Theory (MAUT)](https://en.wikipedi
     )
 
 # ── Main content ──────────────────────────────────────────────────────────────
-st.title("🔑 Dira Edge — Find Your Winning Cities")
-st.caption(
-    f"Data as of {scraped_at} · "
-    f"{len(raw_df)} raffles across {len(city_probs)} cities · "
-    f"Target: Young Couple (זוג צעיר)"
-)
+title_col, counter_col = st.columns([5, 1])
+with title_col:
+    st.title("🔑 Dira Edge — Find Your Winning Cities")
+    st.caption(
+        f"Data as of {scraped_at} · "
+        f"{len(raw_df)} raffles across {len(city_probs)} cities · "
+        f"Target: Young Couple (זוג צעיר)"
+    )
+with counter_col:
+    if visit_count is not None:
+        st.markdown(
+            f"""
+            <div style="text-align:center; padding:16px 0 0 0;">
+                <div style="font-size:1.5rem; font-weight:700; line-height:1;">{visit_count:,}</div>
+                <div style="font-size:0.7rem; color:#888; margin-top:3px;">👥 visitors</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 st.info(
     "**Rules:** Choose 3 cities. Enter all available raffles within those cities. "
     "Goal: maximize P(winning at least one apartment)."
