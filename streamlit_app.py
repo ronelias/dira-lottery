@@ -112,7 +112,7 @@ with st.sidebar:
         )
     with col2:
         if _wait > 0:
-            st.caption(f"Wait {int(_wait)}s")
+            st.success("Updated ✓")
         else:
             ts = get_latest_timestamp()
             st.caption(f"Last:\n{ts[:10] if ts != 'unknown' else '—'}")
