@@ -5,6 +5,7 @@ import glob
 import json
 from datetime import datetime, timedelta
 
+import requests
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -98,14 +99,27 @@ with st.sidebar:
     st.caption("דירה בהגרלה — Lottery Optimizer")
     st.divider()
 
+    _last_refresh = st.session_state.get("last_refresh_time")
+    _cooldown = 60  # seconds between refreshes
+    _wait = max(0, _cooldown - (datetime.now() - _last_refresh).total_seconds()) if _last_refresh else 0
+
     col1, col2 = st.columns([2, 1])
     with col1:
-        refresh_clicked = st.button("🔄 Refresh Data", width="stretch")
+        refresh_clicked = st.button(
+            "🔄 Refresh Data",
+            width="stretch",
+            disabled=_wait > 0,
+        )
     with col2:
-        st.caption(f"Last:\n{get_latest_timestamp()[:10] if get_latest_timestamp() != 'unknown' else '—'}")
+        if _wait > 0:
+            st.caption(f"Wait {int(_wait)}s")
+        else:
+            ts = get_latest_timestamp()
+            st.caption(f"Last:\n{ts[:10] if ts != 'unknown' else '—'}")
 
-    if refresh_clicked:
-        st.cache_data.clear()
+    if refresh_clicked and _wait == 0:
+        st.session_state["last_refresh_time"] = datetime.now()
+        load_latest_data.clear()  # only clear this function's cache, not all users'
         st.rerun()
 
     st.divider()
@@ -121,32 +135,40 @@ with st.sidebar:
         label_visibility="collapsed",
     )
     if uploaded is not None:
-        try:
-            if uploaded.name.endswith(".csv"):
-                # CSV format: city_hebrew, city_english, preference_rank
-                prefs_csv = pd.read_csv(uploaded, encoding="utf-8-sig")
-                loaded_prefs = {}
-                for _, row in prefs_csv.iterrows():
-                    city = row.get("city_english") or row.get("city_hebrew", "")
-                    rank = row.get("preference_rank")
-                    if city and pd.notna(rank):
-                        try:
-                            loaded_prefs[str(city)] = int(float(rank))
-                        except (ValueError, TypeError):
-                            pass
-                for city, val in loaded_prefs.items():
-                    st.session_state[f"pref_{city}"] = max(0, min(10, val))
-                st.success(f"Loaded {len(loaded_prefs)} city preferences from CSV")
-            else:
-                # JSON format saved by this app
-                loaded = json.load(uploaded)
-                for city, val in loaded.get("preferences", {}).items():
-                    st.session_state[f"pref_{city}"] = int(val)
-                if loaded.get("name"):
-                    st.session_state["profile_name"] = loaded["name"]
-                st.success(f"Loaded: {loaded.get('name', 'preferences')}")
-        except Exception as e:
-            st.error(f"Could not load file: {e}")
+        if uploaded.size > 200 * 1024:  # 200 KB hard cap
+            st.error("File is too large.")
+        else:
+            try:
+                if uploaded.name.endswith(".csv"):
+                    prefs_csv = pd.read_csv(uploaded, encoding="utf-8-sig")
+                    loaded_prefs = {}
+                    for _, row in prefs_csv.iterrows():
+                        city = str(row.get("city_english") or row.get("city_hebrew") or "")[:80]
+                        rank = row.get("preference_rank")
+                        if city and pd.notna(rank):
+                            try:
+                                loaded_prefs[city] = max(0, min(10, int(float(rank))))
+                            except (ValueError, TypeError):
+                                pass
+                    for city, val in loaded_prefs.items():
+                        st.session_state[f"pref_{city}"] = val
+                    st.success(f"Loaded {len(loaded_prefs)} city preferences")
+                else:
+                    loaded = json.load(uploaded)
+                    if not isinstance(loaded, dict):
+                        raise ValueError("Invalid format")
+                    for city, val in loaded.get("preferences", {}).items():
+                        if isinstance(city, str) and len(city) <= 80:
+                            try:
+                                st.session_state[f"pref_{city}"] = max(0, min(10, int(val)))
+                            except (ValueError, TypeError):
+                                pass
+                    name = loaded.get("name", "")
+                    if isinstance(name, str) and name:
+                        st.session_state["profile_name"] = name[:60]
+                    st.success(f"Loaded: {name or 'preferences'}")
+            except Exception:
+                st.error("Could not read file. Please upload a valid preferences file.")
 
     if st.session_state.get("profile_name") and not profile_name:
         profile_name = st.session_state["profile_name"]
