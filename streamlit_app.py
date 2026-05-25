@@ -230,7 +230,7 @@ with st.sidebar:
             st.markdown(
                 "<div style='text-align:center;line-height:1.3;padding-top:4px'>"
                 "<div style='font-size:1.3rem'>🏙️</div>"
-                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>City<br>matters</div>"
+                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>City</div>"
                 "</div>",
                 unsafe_allow_html=True,
             )
@@ -244,7 +244,7 @@ with st.sidebar:
             st.markdown(
                 "<div style='text-align:center;line-height:1.3;padding-top:4px'>"
                 "<div style='font-size:1.3rem'>📊</div>"
-                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>Best<br>odds</div>"
+                "<div style='font-size:0.65rem;color:#888;margin-top:2px'>Odds</div>"
                 "</div>",
                 unsafe_allow_html=True,
             )
