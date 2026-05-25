@@ -95,17 +95,38 @@ with st.sidebar:
     st.caption("Rate each city 0–10. Higher = more preferred. 5 = neutral.")
 
     # ── Save / Load preferences ──
-    profile_name = st.text_input("Profile name (optional)", placeholder="e.g. Ron & Maya")
+    profile_name = st.text_input("Profile name (optional)", placeholder="e.g. Ron & Marine")
 
-    uploaded = st.file_uploader("Load saved preferences", type="json", label_visibility="collapsed")
+    uploaded = st.file_uploader(
+        "Load saved preferences (.json or .csv)",
+        type=["json", "csv"],
+        label_visibility="collapsed",
+    )
     if uploaded is not None:
         try:
-            loaded = json.load(uploaded)
-            for city, val in loaded.get("preferences", {}).items():
-                st.session_state[f"pref_{city}"] = int(val)
-            if loaded.get("name"):
-                st.session_state["profile_name"] = loaded["name"]
-            st.success(f"Loaded: {loaded.get('name', 'preferences')}")
+            if uploaded.name.endswith(".csv"):
+                # CSV format: city_hebrew, city_english, preference_rank
+                prefs_csv = pd.read_csv(uploaded, encoding="utf-8-sig")
+                loaded_prefs = {}
+                for _, row in prefs_csv.iterrows():
+                    city = row.get("city_english") or row.get("city_hebrew", "")
+                    rank = row.get("preference_rank")
+                    if city and pd.notna(rank):
+                        try:
+                            loaded_prefs[str(city)] = int(float(rank))
+                        except (ValueError, TypeError):
+                            pass
+                for city, val in loaded_prefs.items():
+                    st.session_state[f"pref_{city}"] = max(0, min(10, val))
+                st.success(f"Loaded {len(loaded_prefs)} city preferences from CSV")
+            else:
+                # JSON format saved by this app
+                loaded = json.load(uploaded)
+                for city, val in loaded.get("preferences", {}).items():
+                    st.session_state[f"pref_{city}"] = int(val)
+                if loaded.get("name"):
+                    st.session_state["profile_name"] = loaded["name"]
+                st.success(f"Loaded: {loaded.get('name', 'preferences')}")
         except Exception as e:
             st.error(f"Could not load file: {e}")
 
