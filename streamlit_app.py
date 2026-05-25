@@ -8,6 +8,7 @@ Deploy:       Push to GitHub → share.streamlit.io → connect repo
 
 import os
 import glob
+import json
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -92,7 +93,24 @@ with st.sidebar:
     st.divider()
     st.subheader("Your City Preferences")
     st.caption("Rate each city 0–10. Higher = more preferred. 5 = neutral.")
-    st.caption("These sliders are personal — they only affect your session.")
+
+    # ── Save / Load preferences ──
+    profile_name = st.text_input("Profile name (optional)", placeholder="e.g. Ron & Maya")
+
+    uploaded = st.file_uploader("Load saved preferences", type="json", label_visibility="collapsed")
+    if uploaded is not None:
+        try:
+            loaded = json.load(uploaded)
+            for city, val in loaded.get("preferences", {}).items():
+                st.session_state[f"pref_{city}"] = int(val)
+            if loaded.get("name"):
+                st.session_state["profile_name"] = loaded["name"]
+            st.success(f"Loaded: {loaded.get('name', 'preferences')}")
+        except Exception as e:
+            st.error(f"Could not load file: {e}")
+
+    if st.session_state.get("profile_name") and not profile_name:
+        profile_name = st.session_state["profile_name"]
 
 # ── Load data ─────────────────────────────────────────────────────────────────
 with st.spinner("Loading lottery data..."):
@@ -110,13 +128,28 @@ all_cities = city_probs["city_english"].tolist()
 scraped_at = get_latest_timestamp()
 
 # ── City preference sliders (sidebar continued) ───────────────────────────────
-# Build sliders for every city; store in a dict
 with st.sidebar:
     preferences = {}
     for city_eng in sorted(all_cities):
         heb = city_probs.loc[city_probs["city_english"] == city_eng, "city_hebrew"].values
         label = f"{city_eng}  ({heb[0] if len(heb) > 0 else ''})"
         preferences[city_eng] = st.slider(label, 0, 10, 5, key=f"pref_{city_eng}")
+
+    st.divider()
+    # ── Save preferences button ──
+    prefs_json = json.dumps(
+        {"name": profile_name or "My Preferences", "preferences": preferences},
+        ensure_ascii=False,
+        indent=2,
+    )
+    safe_name = (profile_name or "preferences").replace(" ", "_").replace("/", "-")
+    st.download_button(
+        label="💾 Save Preferences",
+        data=prefs_json.encode("utf-8"),
+        file_name=f"dira_prefs_{safe_name}.json",
+        mime="application/json",
+        width="stretch",
+    )
 
 # ── Main content ──────────────────────────────────────────────────────────────
 st.title("Dira B'Hagral — Lottery Probability Optimizer")
