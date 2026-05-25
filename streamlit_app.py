@@ -1,10 +1,4 @@
-"""
-Dira B'Hagral — Lottery Probability Tool
-Streamlit web app — run locally or deploy to Streamlit Community Cloud.
-
-Local usage:  streamlit run streamlit_app.py
-Deploy:       Push to GitHub → share.streamlit.io → connect repo
-"""
+"""Dira B'Hagral — Lottery Probability Tool (Streamlit app)."""
 
 import os
 import glob
@@ -162,10 +156,7 @@ with st.spinner("Loading lottery data..."):
     raw_df = load_latest_data()
 
 if raw_df.empty:
-    st.error(
-        "No data available. Click **Refresh Data** in the sidebar, "
-        "or run `python scraper.py` locally first."
-    )
+    st.error("No data available. Click **Refresh Data** in the sidebar.")
     st.stop()
 
 city_probs = compute_city_probabilities(raw_df)
@@ -430,20 +421,12 @@ with tabs[0]:
 # ─────────────────────────────────────────────────────────────────────────────
 with tabs[1]:
     st.subheader("P(Win) Over Time")
-    st.caption(
-        "Shows how win probability changes as more people register. "
-        "Requires multiple daily scrapes (run `python scraper.py` each day)."
-    )
 
     num_snapshots = n_snapshots()
-    st.metric("Snapshots collected", num_snapshots, help="Each run of scraper.py adds one snapshot")
+    st.metric("Data points", num_snapshots)
 
     if num_snapshots < 2:
-        st.info(
-            f"Only **{num_snapshots}** snapshot(s) collected so far. "
-            "Run `python scraper.py` daily to build the time series.\n\n"
-            "Once you have 2+ snapshots, this chart will show how probabilities evolve."
-        )
+        st.info("Not enough data points yet to display the trend. Check back soon.")
     else:
         with st.spinner("Loading historical data..."):
             hist = compute_city_probabilities_over_time(DATA_DIR)
@@ -502,7 +485,7 @@ with tabs[1]:
 # ─────────────────────────────────────────────────────────────────────────────
 with tabs[2]:
     st.subheader("Raw Raffle Data")
-    st.caption(f"{len(raw_df)} raffle entries · scraped at {scraped_at}")
+    st.caption(f"{len(raw_df)} raffle entries · last updated {scraped_at[:10] if scraped_at != 'unknown' else '—'}")
 
     # City filter
     city_filter = st.multiselect(
