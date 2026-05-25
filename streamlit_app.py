@@ -204,11 +204,12 @@ if "visit_counted" not in st.session_state:
 else:
     visit_count = st.session_state.get("visit_count")
 
+# ── Sidebar: Advanced Settings + LinkedIn ─────────────────────────────────────
+with st.sidebar:
     st.divider()
 
-    # ── Advanced settings ──
     with st.expander("⚙️ Advanced Settings"):
-        alpha = st.slider(  # noqa: F841  (value also stored in session_state["alpha"])
+        alpha = st.slider(
             "Probability weight (α)",
             min_value=0.0, max_value=1.0, value=0.5, step=0.05,
             key="alpha",
@@ -232,15 +233,14 @@ else:
 
 Both components are normalized to **[0, 1]**, so neither can unfairly dominate the other.
 
-- **α = 1.0** → Only probability matters — choose the cities with the best odds regardless of where you'd like to live
-- **α = 0.5** → Equal weight — a city you love (pref 10) at 30% win rate scores the same as a city you're neutral on (pref 5) at 55% win rate
-- **α = 0.0** → Only preference matters — choose your favourite cities regardless of odds
+- **α = 1.0** → Only probability matters
+- **α = 0.5** → Equal weight (default)
+- **α = 0.0** → Only preference matters
 
-This is the standard [Multi-Attribute Utility Theory (MAUT)](https://en.wikipedia.org/wiki/Multi-attribute_utility) additive formulation under preferential independence (Keeney & Raiffa, 1976).
+Standard [Multi-Attribute Utility Theory](https://en.wikipedia.org/wiki/Multi-attribute_utility) additive model (Keeney & Raiffa, 1976).
             """
         )
 
-    # ── LinkedIn ──
     st.markdown(
         """
         <div style="text-align:center; padding: 12px 0 4px 0;">
