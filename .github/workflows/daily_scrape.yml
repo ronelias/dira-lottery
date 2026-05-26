@@ -1,0 +1,40 @@
+name: Daily Lottery Scrape
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 9:00 AM Israel time (UTC+3 summer)
+  workflow_dispatch:        # Also allows manual trigger from GitHub UI
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # Needed to push history.csv back to the repo
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run scraper
+        run: python scraper.py
+
+      - name: Commit and push history.csv
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/history.csv
+          if git diff --staged --quiet; then
+            echo "No changes to history.csv — skipping commit"
+          else
+            git commit -m "chore: daily lottery update $(date +%Y-%m-%d)"
+            git push
+          fi
